@@ -144,6 +144,11 @@ async function ES(page){
 }
 
 function D(){
+    if(MailsHunter_Data.emails.length == 0){
+        console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} No emails found, exiting.`)
+        process.exit()
+    }
+
     var emails = ""
 
     console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} Saving the emails that has been found to the output you specified.`)
