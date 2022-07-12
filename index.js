@@ -1,141 +1,127 @@
-//Dependencies
-const Puppeteer = require("puppeteer")
-const Request = require("request")
-const Chalk = require("chalk")
-const Delay = require("delay")
-const Fs = require("fs")
+"use strict";
 
-//Variables
-const Self_Args = process.argv.slice(2)
+// Dependencies
+const puppeteer = require("puppeteer")
+const request = require("request")
+const chalk = require("chalk")
+const delay = require("delay")
+const fs = require("fs")
 
-var MailsHunter_Data = {}
-MailsHunter_Data.links = []
-MailsHunter_Data.emails = []
-MailsHunter_Data.dork = ""
+// Variables
+const args = process.argv.slice(2)
 
-//Functions
-async function GL(){
-    const browser = await Puppeteer.launch({ headless: true, argvs: ["--no-sandbox", "--disable-setuid-sandbox"] })
+var MailsHunter = {
+    links: [],
+    emails: [],
+    dork: ""
+}
+
+// Functions
+async function dump(){
+    const browser = await puppeteer.launch({ headless: true, argvs: ["--no-sandbox", "--disable-setuid-sandbox"] })
     const page = await browser.newPage()
 
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36")
-    await page.goto(`https://www.bing.com/search?q=site:pastebin.com intext:(${MailsHunter_Data.dork})`)
+    await page.goto(`https://www.bing.com/search?q=site:pastebin.com intext:(${MailsHunter.dork})`)
 
-    const page_content = await page.content()
+    const pageContent = await page.content()
 
-    if(page_content.indexOf("There are no results for") != -1){
-        console.log(`${Chalk.grey("[") + Chalk.yellowBright("WARNING") + Chalk.grey("]")} Something went wrong while gathering some links, please try again later.`)
-        console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} Aborting..`)
-        browser.close()
-        process.exit()
-        return
+    if(pageContent.indexOf("There are no results for") !== -1){
+        console.log(`${chalk.grey("[") + chalk.yellowBright("WARNING") + chalk.grey("]")} Something went wrong while gathering some links, please try again later.`)
+        console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} Aborting..`)
+        return browser.close()
     }
 
-    var page_index = 1
+    var pageIndex = 1
 
     await page.waitForSelector("#b_results > li> h2 > a").catch(()=>{
-        console.log(`${Chalk.grey("[") + Chalk.yellowBright("WARNING") + Chalk.grey("]")} Something went wrong while gathering some links, please try again later.`)
-        console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} Aborting..`)
+        console.log(`${chalk.grey("[") + chalk.yellowBright("WARNING") + chalk.grey("]")} Something went wrong while gathering some links, please try again later.`)
+        console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} Aborting..`)
         browser.close()
         process.exit()
-        return
     })
 
     const links = await page.$$eval("#b_results > li> h2 > a", elems =>{
         return elems.map(elem => elem.getAttribute("href"))
     })
 
-    for( i in links ){
-        MailsHunter_Data.links.push(links[i])
-    }
+    for( const link of links ) MailsHunter.links.push(link)
 
-    page_index += 1
+    pageIndex += 1
 
-    Repeater()
-    async function Repeater(){
-        await page.click(`#b_results > li.b_pag > nav > ul > li:nth-of-type(${page_index}) > a`).catch(()=>{
-            console.log(`${Chalk.grey("[") + Chalk.yellowBright("WARNING") + Chalk.grey("]")} Max page detected, aborting links gatherer.`)
-            console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} ${MailsHunter_Data.links.length} links has been gathered. Continuing to phase 2.`)
+    grabber()
+    async function grabber(){
+        await page.click(`#b_results > li.b_pag > nav > ul > li:nth-of-type(${pageIndex}) > a`).catch(()=>{
+            console.log(`${chalk.grey("[") + chalk.yellowBright("WARNING") + chalk.grey("]")} Max page detected, aborting links gatherer.`)
+            console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${MailsHunter.links.length} links has been gathered. Continuing to phase 2.`)
             browser.close()
-            ES(page)
-            return
+            return ES(page)
         })
+
         await page.waitForSelector("#b_results > li> h2 > a")
 
         const links = await page.$$eval("#b_results > li> h2 > a", elems =>{
             return elems.map(elem => elem.getAttribute("href"))
         })
     
-        for( i in links ){
-            MailsHunter_Data.links.push(links[i])
-        }
+        for( const link of links ) MailsHunter.links.push(link)
 
-        if(page_index == Self_Args[1]){
-            console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} ${MailsHunter_Data.links.length} links has been gathered. Continuing to phase 2.`)
+        if(pageIndex == args[1]){
+            console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${MailsHunter.links.length} links has been gathered. Continuing to phase 2.`)
             await browser.close()
-            ES(page)
-            return
+            return ES(page)
         }
     
-        page_index += 1
+        pageIndex++
 
-        Repeater()
-        return
+        grabber()
     }
 }
 
 async function ES(page){
-    if(MailsHunter_Data.links.length == 0){
-        console.log(`${Chalk.grey("[") + Chalk.yellowBright("WARNING") + Chalk.grey("]")} No links found on MailsHunter data.`)
-        console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} Aborting..`)
+    if(MailsHunter.links.length == 0){
+        console.log(`${chalk.grey("[") + chalk.yellowBright("WARNING") + chalk.grey("]")} No links found on MailsHunter data.`)
+        console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} Aborting..`)
         process.exit()
-        return
     }
 
-    var link_index = 0
+    var linkIndex = 0
 
-    Repeater()
-    async function Repeater(){
-        Request(`${MailsHunter_Data.links[link_index]}`, function(err, res, body){
+    grabber()
+    async function grabber(){
+        request(`${MailsHunter.links[linkIndex]}`, function(err, res, body){
             if(err){
-                link_index += 1
-                Repeater()
-                return
+                linkIndex++
+                return grabber()
             }
 
-            Main()
-            async function Main(){
-                await Delay(1000)
+            parse()
+            async function parse(){
+                await delay(1000)
 
                 const emails = body.match(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9.-]+/g)
 
                 if(emails == null){
-                    link_index += 1
+                    linkIndex++
     
-                    if(link_index == MailsHunter_Data.links.length){
-                        console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} ${MailsHunter_Data.emails.length} emails found. Continuing to the final phase.`)
-                        D()
-                        return
+                    if(linkIndex == MailsHunter.links.length){
+                        console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${MailsHunter.emails.length} emails found. Continuing to the final phase.`)
+                        return finish()
                     }
     
-                    Repeater()
+                    grabber()
                     return
                 }else{
-                    link_index += 1
+                    linkIndex++
     
-                    for( i in emails ){
-                        if(emails[i].indexOf(".") != -1){
-                            MailsHunter_Data.emails.push(emails[i])
-                        }
+                    for( const email of emails ) if(email.indexOf(".") !== -1) MailsHunter.emails.push(email)
+    
+                    if(linkIndex === MailsHunter.links.length){
+                        console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${MailsHunter.emails.length} emails found. Continuing to the final phase.`)
+                        return finish()
                     }
     
-                    if(link_index == MailsHunter_Data.links.length){
-                        console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} ${MailsHunter_Data.emails.length} emails found. Continuing to the final phase.`)
-                        D()
-                        return
-                    }
-    
-                    Repeater()
+                    grabber()
                     return
                 }
             }
@@ -143,68 +129,24 @@ async function ES(page){
     }
 }
 
-function D(){
-    if(MailsHunter_Data.emails.length == 0){
-        console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} No emails found, exiting.`)
-        process.exit()
-    }
+function finish(){
+    if(MailsHunter.emails.length == 0) return console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} No emails found, exiting.`)
 
-    var emails = ""
+    const emails = []
 
-    console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} Saving the emails that has been found to the output you specified.`)
+    console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} Saving the emails that has been found to the output you specified.`)
 
-    for( i in MailsHunter_Data.emails ){
-        if(emails.length == 0){
-            emails = MailsHunter_Data.emails[i]
-        }else{
-            emails += `\n${MailsHunter_Data.emails[i]}`
-        }
-    }
-    Fs.writeFileSync(Self_Args[2], emails, "utf8")
+    for( const email of MailsHunter.emails ) emails.push(email)
 
-    console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} Emails has been saved, exiting.`)
-    process.exit()
+    fs.writeFileSync(args[2], emails.join("\n"), "utf8")
+
+    console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} Emails has been saved, exiting.`)
 }
 
-//Main
-if(Self_Args.length == 0){
-    console.log(`node index.js <email_services(Multiple emails slicer :)> <max_page> <output>
-Example: node index.js @gmail.com:@yahoo.com 2 ./test_output.txt`)
-    process.exit()
-}
+// Main
+if(!args.length) return console.log(`node index.js <emailServices> <maxPage> <output>`)
 
-if(Self_Args[0] == ""){
-    console.log(`${Chalk.grey("[") + Chalk.redBright("ERROR") + Chalk.grey("]")} Invalid email service/services.`)
-    process.exit()
-}
+for( const service of args[0].split(":") ) MailsHunter.dork.length ? MailsHunter.dork = service : MailsHunter.dork += ` OR ${service}`
 
-if(Self_Args[0].indexOf("@") == -1){
-    console.log(`${Chalk.grey("[") + Chalk.redBright("ERROR") + Chalk.grey("]")} Invalid email service/services.`)
-    process.exit()
-}
-
-if(Self_Args[1] == ""){
-    console.log(`${Chalk.grey("[") + Chalk.redBright("ERROR") + Chalk.grey("]")} Invalid max_page.`)
-    process.exit()
-}
-
-if(isNaN(Self_Args[1])){
-    console.log(`${Chalk.grey("[") + Chalk.redBright("ERROR") + Chalk.grey("]")} max_page is not an Int.`)
-    process.exit()
-}
-
-if(Self_Args[2] == ""){
-    console.log(`${Chalk.grey("[") + Chalk.redBright("ERROR") + Chalk.grey("]")} Invalid output.`)
-    process.exit()
-}
-
-for( i in Self_Args[0].split(":") ){
-    if(MailsHunter_Data.dork.length == 0){
-        MailsHunter_Data.dork = Self_Args[0].split(":")[i]
-    }else{
-        MailsHunter_Data.dork += ` OR ${Self_Args[0].split(":")[i]}`
-    }
-}
-
-console.log(`${Chalk.grey("[") + Chalk.blueBright("INFO") + Chalk.grey("]")} Looks like the arguments are good. Continuing to phase 1.`)
-GL()
+console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} Looks like the arguments are good. Continuing to phase 1.`)
+dump()
