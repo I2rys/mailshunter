@@ -18,7 +18,7 @@ node index.js <emailServices> <maxPage> <output>
 ```
 
 - emailServices - The email services to dump. Multiple emails example: @google.com:@yahoo.com:@yandex.com and so on
--  maxPage - The maximum page to gather links to dump emails to.
+- maxPage - The maximum page to gather links to dump emails to.
 - output - The output of the gathered emails.
 
 ## License

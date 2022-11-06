@@ -22,7 +22,7 @@ async function dump(){
     const page = await browser.newPage()
 
     await page.setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36")
-    await page.goto(`https://www.bing.com/search?q=site:pastebin.com intext:(${MailsHunter.dork})`)
+    await page.goto(`https://www.bing.com/search?q=site:pastebin.com intext:(${mailshunter.dork})`)
 
     const pageContent = await page.content()
 
@@ -45,7 +45,7 @@ async function dump(){
         return elems.map(elem => elem.getAttribute("href"))
     })
 
-    for( const link of links ) MailsHunter.links.push(link)
+    for( const link of links ) mailshunter.links.push(link)
 
     pageIndex += 1
 
@@ -53,7 +53,7 @@ async function dump(){
     async function grabber(){
         await page.click(`#b_results > li.b_pag > nav > ul > li:nth-of-type(${pageIndex}) > a`).catch(()=>{
             console.log(`${chalk.grey("[") + chalk.yellowBright("WARNING") + chalk.grey("]")} Max page detected, aborting links gatherer.`)
-            console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${MailsHunter.links.length} links has been gathered. Continuing to phase 2.`)
+            console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${mailshunter.links.length} links has been gathered. Continuing to phase 2.`)
             browser.close()
             return ES(page)
         })
@@ -64,10 +64,10 @@ async function dump(){
             return elems.map(elem => elem.getAttribute("href"))
         })
     
-        for( const link of links ) MailsHunter.links.push(link)
+        for( const link of links ) mailshunter.links.push(link)
 
         if(pageIndex == args[1]){
-            console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${MailsHunter.links.length} links has been gathered. Continuing to phase 2.`)
+            console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${mailshunter.links.length} links has been gathered. Continuing to phase 2.`)
             await browser.close()
             return ES(page)
         }
@@ -79,7 +79,7 @@ async function dump(){
 }
 
 async function ES(page){
-    if(MailsHunter.links.length == 0){
+    if(!mailshunter.links.length){
         console.log(`${chalk.grey("[") + chalk.yellowBright("WARNING") + chalk.grey("]")} No links found on MailsHunter data.`)
         console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} Aborting..`)
         process.exit()
@@ -89,7 +89,7 @@ async function ES(page){
 
     grabber()
     async function grabber(){
-        request(`${MailsHunter.links[linkIndex]}`, function(err, res, body){
+        request(`${mailshunter.links[linkIndex]}`, function(err, res, body){
             if(err){
                 linkIndex++
                 return grabber()
@@ -101,28 +101,26 @@ async function ES(page){
 
                 const emails = body.match(/[a-zA-Z0-9_.+-]+@[a-zA-Z0-9.-]+/g)
 
-                if(emails == null){
+                if(!emails){
                     linkIndex++
     
-                    if(linkIndex == MailsHunter.links.length){
-                        console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${MailsHunter.emails.length} emails found. Continuing to the final phase.`)
+                    if(linkIndex == mailshunter.links.length){
+                        console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${mailshunter.emails.length} emails found. Continuing to the final phase.`)
                         return finish()
                     }
     
                     grabber()
-                    return
                 }else{
                     linkIndex++
     
-                    for( const email of emails ) if(email.indexOf(".") !== -1) MailsHunter.emails.push(email)
+                    for( const email of emails ) if(email.match(".")) mailshunter.emails.push(email)
     
-                    if(linkIndex === MailsHunter.links.length){
-                        console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${MailsHunter.emails.length} emails found. Continuing to the final phase.`)
+                    if(linkIndex === mailshunter.links.length){
+                        console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} ${mailshunter.emails.length} emails found. Continuing to the final phase.`)
                         return finish()
                     }
     
                     grabber()
-                    return
                 }
             }
         })
@@ -130,13 +128,13 @@ async function ES(page){
 }
 
 function finish(){
-    if(MailsHunter.emails.length == 0) return console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} No emails found, exiting.`)
+    if(!mailshunter.emails.length) return console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} No emails found, exiting.`)
 
     const emails = []
 
     console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} Saving the emails that has been found to the output you specified.`)
 
-    for( const email of MailsHunter.emails ) emails.push(email)
+    for( const email of mailshunter.emails ) emails.push(email)
 
     fs.writeFileSync(args[2], emails.join("\n"), "utf8")
 
@@ -146,7 +144,7 @@ function finish(){
 // Main
 if(!args.length) return console.log(`node index.js <emailServices> <maxPage> <output>`)
 
-for( const service of args[0].split(":") ) MailsHunter.dork.length ? MailsHunter.dork = service : MailsHunter.dork += ` OR ${service}`
+for( const service of args[0].split(":") ) mailshunter.dork.length ? mailshunter.dork = service : mailshunter.dork += ` OR ${service}`
 
 console.log(`${chalk.grey("[") + chalk.blueBright("INFO") + chalk.grey("]")} Looks like the arguments are good. Continuing to phase 1.`)
 dump()
